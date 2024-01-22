@@ -1,18 +1,17 @@
-import torch
-from torch import Tensor
+import math
+from typing import Iterable, List
+
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn import Transformer
-import math
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from torchtext.data.utils import get_tokenizer
+from torchtext.datasets import Multi30k, multi30k
 from torchtext.vocab import build_vocab_from_iterator
-from torchtext.datasets import multi30k, Multi30k
-from typing import Iterable, List
 
 from seq2seq_network import Seq2SeqTransformer
-
 
 # We need to modify the URLs for the dataset since the links to the original dataset are broken
 # Refer to https://github.com/pytorch/text/issues/1756#issuecomment-1163664163 for more info
@@ -105,6 +104,7 @@ optimizer = torch.optim.Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.
 # Collation
 from torch.nn.utils.rnn import pad_sequence
 
+
 # helper function to club together sequential operations
 def sequential_transforms(*transforms):
     def func(txt_input):
@@ -194,6 +194,7 @@ def evaluate(model):
 
 # Training
 from timeit import default_timer as timer
+
 NUM_EPOCHS = 18
 
 for epoch in range(1, NUM_EPOCHS+1):

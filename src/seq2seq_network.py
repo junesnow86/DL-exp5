@@ -1,8 +1,10 @@
-from torch import Tensor
+import math
+
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn import Transformer
-import math
+
 
 # helper Module that adds positional encoding to the token embedding to introduce a notion of word order.
 class PositionalEncoding(nn.Module):
