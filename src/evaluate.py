@@ -23,7 +23,7 @@ def evaluate(model, val_iter, collate_fn, loss_fn, batch_size, device):
 
         logits = model(src, tgt_input, src_mask, tgt_mask,src_padding_mask, tgt_padding_mask, src_padding_mask)
 
-        tgt_out = tgt[1:, :]
+        tgt_out = tgt[1:, :].long()
         loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         losses += loss.item()
 

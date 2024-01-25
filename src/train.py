@@ -25,7 +25,7 @@ def train_epoch(model, optimizer, train_iter, collate_fn, loss_fn, batch_size, d
 
         optimizer.zero_grad()
 
-        tgt_out = tgt[1:, :]
+        tgt_out = tgt[1:, :].long()
         loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         loss.backward()
 
