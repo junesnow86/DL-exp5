@@ -60,6 +60,38 @@ def attention(query, key, value, mask=None):
     # now tmp shape: [n, heads, q_len, d_v]
     return torch.matmul(tmp, value)
 
+class MultiHeadAttention(nn.Module):
+    def __init__(self, n_head, d_model, dropout=0.1):
+        super().__init__()
+
+        assert d_model % n_head == 0
+        # d_k = d_v = d_model // n_head
+        self.d_k = self.d_v = d_model // n_head
+        self.n_head = n_head
+        self.d_model = d_model
+
+        self.Q = nn.Linear(d_model, d_model)
+        self.K = nn.Linear(d_model, d_model)
+        self.V = nn.Linear(d_model, d_model)
+        self.out = nn.Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, q, k, v, mask=None):
+        assert q.shape[0] == k.shape[0] == v.shape[0]  # batch should be the same
+        assert k.shape[1] == v.shape[1]  # the sequence length of k and v should be the same
+        
+        n, q_len = q.shape[:2]
+        k_len = k.shape[1]
+        q_ = self.Q(q).reshape(n, q_len, self.n_head, self.d_k).transpose(1, 2)
+        k_ = self.K(k).reshape(n, k_len, self.n_head, self.d_k).transpose(1, 2)
+        v_ = self.V(v).reshape(n, k_len, self.n_head, self.d_v).transpose(1, 2)
+
+        attention_res = attention(q_, k_, v_, mask)
+        concat_res = attention_res.transpose(1, 2).reshape(n, q_len, self.d_model)
+        concat_res = self.dropout(concat_res)
+
+        return self.out(concat_res)
+
 # Seq2Seq Network
 class Seq2SeqTransformer(nn.Module):
     def __init__(self,
