@@ -7,6 +7,44 @@ from torch.nn import Transformer
 import torch.nn.functional as F
 
 
+def generate_mask(q_pad, k_pad, with_left_mask=False):
+    '''
+    q_pad shape: [n, q_len]
+    k_pad shape: [n, k_len]
+    '''
+    assert q_pad.device == k_pad.device
+    n, q_len = q_pad.shape
+    n, k_len = k_pad.shape
+
+    mask_shape = (n, 1, q_len, k_len)
+    if with_left_mask:
+        mask = 1 - torch.tril(torch.ones(mask_shape, device=q_pad.device))
+    else:
+        mask = torch.zeros(mask_shape, device=q_pad.device)
+    for i in range(n):
+        mask[i, :, q_pad[i], :] = 1
+        mask[i, :, :, k_pad[i]] = 1
+    return mask.bool()
+
+
+def attention(query, key, value, mask=None):
+    '''The dtype of mask must be bool
+    query shape: [n, heads, q_len, d_k]
+    key shape: [n, heads, k_len, d_k]
+    value shape: [n, heads, k_len, d_v]
+    '''
+    MY_INF = 1e12
+
+    assert query.shape[-1] == key.shape[-1]
+    d_k = key.shape[-1]
+    # tmp shape: [n, heads, q_len, k_len]
+    tmp = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    if mask is not None:
+        tmp = tmp.masked_fill(mask, float(-MY_INF))
+    tmp = F.softmax(tmp, dim=-1)
+    # now tmp shape: [n, heads, q_len, d_v]
+    return torch.matmul(tmp, value)
+
 # helper Module that adds positional encoding to the token embedding to introduce a notion of word order.
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_seq_len: int=120):
@@ -31,24 +69,6 @@ class PositionalEncoding(nn.Module):
         assert d_model == pe.shape[2]
         rescaled_x = x * d_model**0.5
         return rescaled_x + pe[:, 0:seq_len, :]
-
-def attention(query, key, value, mask=None):
-    '''The dtype of mask must be bool
-    query shape: [n, heads, q_len, d_k]
-    key shape: [n, heads, k_len, d_k]
-    value shape: [n, heads, k_len, d_v]
-    '''
-    MY_INF = 1e12
-
-    assert query.shape[-1] == key.shape[-1]
-    d_k = key.shape[-1]
-    # tmp shape: [n, heads, q_len, k_len]
-    tmp = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
-    if mask is not None:
-        tmp = tmp.masked_fill(mask, float(-MY_INF))
-    tmp = F.softmax(tmp, dim=-1)
-    # now tmp shape: [n, heads, q_len, d_v]
-    return torch.matmul(tmp, value)
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, n_head, d_model, dropout=0.1):
@@ -170,4 +190,31 @@ class Decoder(nn.Module):
         return x
 
 # Seq2Seq Network
+class MyTransformer(nn.Module):
+    def __init__(self,
+                 src_vocab_size,
+                 dst_vocab_size,
+                 pad_idx,
+                 n_layer,
+                 n_head,
+                 d_model,
+                 d_ff,
+                 dropout=0.1,
+                 max_seq_len=120):
+        super().__init__()
+        self.encoder = Encoder(src_vocab_size, pad_idx, n_layer, n_head, 
+                               d_model, d_ff, dropout, max_seq_len)
+        self.decoder = Decoder(dst_vocab_size, pad_idx, n_layer, n_head,
+                               d_model, d_ff, dropout, max_seq_len)
+        self.pad_idx = pad_idx
+        self.output_layer = nn.Linear(d_model, dst_vocab_size)
 
+    def forward(self, src, tgt):
+        src_pad_mask = src == self.pad_idx
+        tgt_pad_mask = tgt == self.pad_idx
+        src_mask = generate_mask(src_pad_mask, src_pad_mask, False)
+        tgt_mask = generate_mask(tgt_pad_mask, tgt_pad_mask, True)
+        src_tgt_mask = generate_mask(tgt_pad_mask, src_pad_mask, False)
+        memory = self.encoder(src, src_mask)
+        res = self.decoder(tgt, memory, tgt_mask, src_tgt_mask)
+        return self.output_layer(res)
