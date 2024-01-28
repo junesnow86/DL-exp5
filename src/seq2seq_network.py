@@ -4,11 +4,11 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import Transformer
+import torch.nn.functional as F
 
 
 # helper Module that adds positional encoding to the token embedding to introduce a notion of word order.
 class PositionalEncoding(nn.Module):
-
     def __init__(self, d_model: int, max_seq_len: int):
         super().__init__()
 
@@ -41,6 +41,24 @@ class TokenEmbedding(nn.Module):
 
     def forward(self, tokens: Tensor):
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
+
+def attention(query, key, value, mask=None):
+    '''The dtype of mask must be bool
+    query shape: [n, heads, q_len, d_k]
+    key shape: [n, heads, k_len, d_k]
+    value shape: [n, heads, k_len, d_v]
+    '''
+    MY_INF = 1e12
+
+    assert query.shape[-1] == key.shape[-1]
+    d_k = key.shape[-1]
+    # tmp shape: [n, heads, q_len, k_len]
+    tmp = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    if mask is not None:
+        tmp = tmp.masked_fill(mask, float(-MY_INF))
+    tmp = F.softmax(tmp, dim=-1)
+    # now tmp shape: [n, heads, q_len, d_v]
+    return torch.matmul(tmp, value)
 
 # Seq2Seq Network
 class Seq2SeqTransformer(nn.Module):
