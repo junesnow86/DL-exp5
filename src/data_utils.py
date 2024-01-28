@@ -1,10 +1,31 @@
-from typing import List
+import csv
+from typing import Any, Dict, Iterable, Iterator, List, Tuple
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
+from torchtext.data.utils import get_tokenizer
+from torchtext.vocab import build_vocab_from_iterator
 
-from build_vocab import BOS_IDX, EOS_IDX, PAD_IDX, SRC_LANGUAGE, TGT_LANGUAGE
+SRC_LANGUAGE = 'en'
+TGT_LANGUAGE = 'zh'
 
+# Define special symbols and indices
+UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 0, 1, 2, 3
+# Make sure the tokens are in order of their indices to properly insert them in vocab
+special_symbols = ['<unk>', '<pad>', '<bos>', '<eos>']
+
+def create_data_iter(file_path: str) -> Iterator[Tuple[str, str]]:
+    with open(file_path, 'r', encoding='utf-8') as file:
+        tsv_reader = csv.reader(file, delimiter='\t')
+        for row in tsv_reader:
+            yield tuple(row)
+
+# helper function to yield list of tokens
+def yield_tokens(token_transform: Dict[str, Any], data_iter: Iterable, language: str) -> List[str]:
+    language_index = {SRC_LANGUAGE: 0, TGT_LANGUAGE: 1}
+
+    for data_sample in data_iter:
+        yield token_transform[language](data_sample[language_index[language]])
 
 # helper function to club together sequential operations
 def sequential_transforms(*transforms):
@@ -45,6 +66,6 @@ def collate_fn(batch, text_transform):
         src_batch.append(text_transform[SRC_LANGUAGE](src_sample.rstrip("\n")))
         tgt_batch.append(text_transform[TGT_LANGUAGE](tgt_sample.rstrip("\n")))
 
-    src_batch = pad_sequence(src_batch, padding_value=PAD_IDX)
-    tgt_batch = pad_sequence(tgt_batch, padding_value=PAD_IDX)
+    src_batch = pad_sequence(src_batch, padding_value=PAD_IDX, batch_first=True)
+    tgt_batch = pad_sequence(tgt_batch, padding_value=PAD_IDX, batch_first=True)
     return src_batch, tgt_batch

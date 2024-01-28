@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from collate_data import create_mask
+from data_utils import create_mask
 
 
 def train_epoch(model, optimizer, train_iter, collate_fn, loss_fn, batch_size, device):

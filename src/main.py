@@ -6,16 +6,18 @@ import numpy as np
 import torch
 from torchtext.data.utils import get_tokenizer
 
-from build_vocab import (
+from data_utils import (
     SRC_LANGUAGE,
     TGT_LANGUAGE,
     UNK_IDX,
     build_vocab_from_iterator,
+    collate_fn,
     create_data_iter,
+    sequential_transforms,
     special_symbols,
+    tensor_transform,
     yield_tokens,
 )
-from collate_data import collate_fn, sequential_transforms, tensor_transform
 from evaluate import evaluate
 from inference import translate
 from seq2seq_network import Seq2SeqTransformer

@@ -1,7 +1,12 @@
 import torch
 
-from build_vocab import BOS_IDX, EOS_IDX, SRC_LANGUAGE, TGT_LANGUAGE
-from collate_data import generate_square_subsequent_mask
+from data_utils import (
+    BOS_IDX,
+    EOS_IDX,
+    SRC_LANGUAGE,
+    TGT_LANGUAGE,
+    generate_square_subsequent_mask,
+)
 
 
 # function to generate output sequence using greedy algorithm
