@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 # helper Module that adds positional encoding to the token embedding to introduce a notion of word order.
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model: int, max_seq_len: int):
+    def __init__(self, d_model: int, max_seq_len: int=120):
         super().__init__()
 
         # Assume d_model is an even number for convenience
@@ -31,16 +31,6 @@ class PositionalEncoding(nn.Module):
         assert d_model == pe.shape[2]
         rescaled_x = x * d_model**0.5
         return rescaled_x + pe[:, 0:seq_len, :]
-
-# helper Module to convert tensor of input indices into corresponding tensor of token embeddings
-class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size: int, emb_size):
-        super(TokenEmbedding, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, emb_size)
-        self.emb_size = emb_size
-
-    def forward(self, tokens: Tensor):
-        return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 def attention(query, key, value, mask=None):
     '''The dtype of mask must be bool
@@ -92,50 +82,92 @@ class MultiHeadAttention(nn.Module):
 
         return self.out(concat_res)
 
+class FeedForward(nn.Module):
+    def __init__(self, d_model, d_ff, dropout=0.1):
+        super().__init__()
+        self.linear1 = nn.Linear(d_model, d_ff)
+        self.linear2 = nn.Linear(d_ff, d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.linear1(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+        x = self.linear2(x)
+        return x
+
+class EncoderLayer(nn.Module):
+    def __init__(self, n_head, d_model, d_ff, dropout=0.1):
+        super().__init__()
+        self.attn = MultiHeadAttention(n_head, d_model, dropout)
+        self.ff = FeedForward(d_model, d_ff, dropout)
+        self.ln1 = nn.LayerNorm(d_model)
+        self.ln2 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+
+    def forward(self, x, src_mask):
+        x = x + self.dropout1(self.attn(x, x, x, src_mask))
+        x = self.ln1(x)
+        x = x + self.dropout2(self.ff(x))
+        x = self.ln2(x)
+        return x
+
+class DecoderLayer(nn.Module):
+    def __init__(self, n_head, d_model, d_ff, dropout=0.1):
+        super().__init__()
+        self.attn1 = MultiHeadAttention(n_head, d_model, dropout)
+        self.attn2 = MultiHeadAttention(n_head, d_model, dropout)
+        self.ff = FeedForward(d_model, d_ff, dropout)
+        self.ln1 = nn.LayerNorm(d_model)
+        self.ln2 = nn.LayerNorm(d_model)
+        self.ln3 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.dropout3 = nn.Dropout(dropout)
+
+    def forward(self, x, memory, tgt_mask, src_tgt_mask):
+        x = x + self.dropout1(self.attn1(x, x, x, tgt_mask))
+        x = self.ln1(x)
+        x = x + self.dropout2(self.attn2(x, memory, memory, src_tgt_mask))
+        x = self.ln2(x)
+        x = x + self.dropout3(self.ff(x))
+        x = self.ln3(x)
+        return x
+
+class Encoder(nn.Module):
+    def __init__(self, vocab_size, pad_idx, n_layer, n_head, d_model, d_ff, dropout=0.1, max_seq_len=120):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, d_model, padding_idx=pad_idx)
+        self.pos_embedding = PositionalEncoding(d_model, max_seq_len)
+        self.layers = nn.ModuleList(
+            [EncoderLayer(n_head, d_model, d_ff, dropout) for _ in range(n_layer)])
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, src_mask=None):
+        x = self.embedding(x)
+        x = self.pos_embedding(x)
+        x = self.dropout(x)
+        for layer in self.layers:
+            x = layer(x, src_mask)
+        return x
+
+class Decoder(nn.Module):
+    def __init__(self, vocab_size, pad_idx, n_layer, n_head, d_model, d_ff, dropout=0.1, max_seq_len=120):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, d_model, padding_idx=pad_idx)
+        self.pos_embedding = PositionalEncoding(d_model, max_seq_len)
+        self.layers = nn.ModuleList(
+            [DecoderLayer(n_head, d_model, d_ff, dropout) for _ in range(n_layer)])
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, memory, tgt_mask=None, src_tgt_mask=None):
+        x = self.embedding(x)
+        x = self.pos_embedding(x)
+        x = self.dropout(x)
+        for layer in self.layers:
+            x = layer(x, memory, tgt_mask, src_tgt_mask)
+        return x
+
 # Seq2Seq Network
-class Seq2SeqTransformer(nn.Module):
-    def __init__(self,
-                 num_encoder_layers: int,
-                 num_decoder_layers: int,
-                 emb_size: int,
-                 nhead: int,
-                 src_vocab_size: int,
-                 tgt_vocab_size: int,
-                 dim_feedforward: int = 512,
-                 dropout: float = 0.1):
-        super(Seq2SeqTransformer, self).__init__()
-        self.transformer = Transformer(d_model=emb_size,
-                                       nhead=nhead,
-                                       num_encoder_layers=num_encoder_layers,
-                                       num_decoder_layers=num_decoder_layers,
-                                       dim_feedforward=dim_feedforward,
-                                       dropout=dropout,
-                                       batch_first=True)
-        self.generator = nn.Linear(emb_size, tgt_vocab_size)
-        self.src_tok_emb = TokenEmbedding(src_vocab_size, emb_size)
-        self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, emb_size)
-        self.positional_encoding = PositionalEncoding(
-            emb_size, dropout=dropout)
 
-    def forward(self,
-                src: Tensor,
-                trg: Tensor,
-                src_mask: Tensor,
-                tgt_mask: Tensor,
-                src_padding_mask: Tensor,
-                tgt_padding_mask: Tensor,
-                memory_key_padding_mask: Tensor):
-        src_emb = self.positional_encoding(self.src_tok_emb(src))
-        tgt_emb = self.positional_encoding(self.tgt_tok_emb(trg))
-        outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
-                                src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
-        return self.generator(outs)
-
-    def encode(self, src: Tensor, src_mask: Tensor):
-        return self.transformer.encoder(self.positional_encoding(
-                            self.src_tok_emb(src)), src_mask)
-
-    def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
-        return self.transformer.decoder(self.positional_encoding(
-                          self.tgt_tok_emb(tgt)), memory,
-                          tgt_mask)
