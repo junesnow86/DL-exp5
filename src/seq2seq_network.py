@@ -8,23 +8,29 @@ from torch.nn import Transformer
 
 # helper Module that adds positional encoding to the token embedding to introduce a notion of word order.
 class PositionalEncoding(nn.Module):
-    def __init__(self,
-                 emb_size: int,
-                 dropout: float,
-                 maxlen: int = 5000):
-        super(PositionalEncoding, self).__init__()
-        den = torch.exp(- torch.arange(0, emb_size, 2)* math.log(10000) / emb_size)
-        pos = torch.arange(0, maxlen).reshape(maxlen, 1)
-        pos_embedding = torch.zeros((maxlen, emb_size))
-        pos_embedding[:, 0::2] = torch.sin(pos * den)
-        pos_embedding[:, 1::2] = torch.cos(pos * den)
-        pos_embedding = pos_embedding.unsqueeze(-2)
 
-        self.dropout = nn.Dropout(dropout)
-        self.register_buffer('pos_embedding', pos_embedding)
+    def __init__(self, d_model: int, max_seq_len: int):
+        super().__init__()
 
-    def forward(self, token_embedding: Tensor):
-        return self.dropout(token_embedding + self.pos_embedding[:token_embedding.size(0), :])
+        # Assume d_model is an even number for convenience
+        assert d_model % 2 == 0
+
+        i_seq = torch.linspace(0, max_seq_len - 1, max_seq_len)
+        j_seq = torch.linspace(0, d_model - 2, d_model // 2)
+        pos, two_i = torch.meshgrid(i_seq, j_seq)
+        pe_2i = torch.sin(pos / 10000**(two_i / d_model))
+        pe_2i_1 = torch.cos(pos / 10000**(two_i / d_model))
+        pe = torch.stack((pe_2i, pe_2i_1), 2).reshape(1, max_seq_len, d_model)
+
+        self.register_buffer('pe', pe, False)
+
+    def forward(self, x: torch.Tensor):
+        n, seq_len, d_model = x.shape
+        pe: torch.Tensor = self.pe
+        assert seq_len <= pe.shape[1]
+        assert d_model == pe.shape[2]
+        rescaled_x = x * d_model**0.5
+        return rescaled_x + pe[:, 0:seq_len, :]
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
