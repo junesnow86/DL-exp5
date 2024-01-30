@@ -4,7 +4,7 @@ from tqdm import tqdm
 from data_utils import PAD_IDX
 
 
-def train(model, optimizer, train_dataloader, loss_fn, device, num_epochs):
+def train(model, optimizer, train_dataloader, loss_fn, device, num_epochs, scheduler=None):
     for epoch in range(1, num_epochs+1):
         progress_bar = tqdm(train_dataloader, total=len(train_dataloader), desc='training')
         for src, tgt in progress_bar:
@@ -27,6 +27,9 @@ def train(model, optimizer, train_dataloader, loss_fn, device, num_epochs):
             tgt_label = tgt_label.reshape(n * seq_len)
             loss = loss_fn(logits, tgt_label)
 
+            if scheduler is not None:
+                scheduler.step(loss)
+
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -39,7 +42,7 @@ def train(model, optimizer, train_dataloader, loss_fn, device, num_epochs):
 if __name__ == '__main__':
     NUM_EPOCH = 1
     BATCH_SIZE = 16
-    LR = 0.001
+    LR = 0.01
     MAX_LEN = 120
     d_model = 512
     d_ff = 2048
@@ -102,10 +105,13 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.9, patience=10, verbose=True)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95, verbose=True)
+
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 
-    train(model, optimizer, train_dataloader, loss_fn, DEVICE, NUM_EPOCH)
+    # train(model, optimizer, train_dataloader, loss_fn, DEVICE, NUM_EPOCH, scheduler=scheduler)
 
     from inference import translate
-    src_sentence = 'In fact, Egyptian President Mohamed Morsi is seeking more financial aid from the US and the International Monetary Fund, and wants his coming visit to Washington, DC, to be a success.'
+    src_sentence = 'The school lunch program is the largest discrete market for low-cost, healthy food.'
     translate(model, src_sentence, text_transform, vocab_transform, DEVICE)

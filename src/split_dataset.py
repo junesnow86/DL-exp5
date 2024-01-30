@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 df = pd.read_csv('/home/ljt/DL-exp5/data/news-commentary-v15/news-commentary-v15.en-zh.tsv', sep='\t', header=None)
 
 # Sample half of the data
-df = df.sample(frac=0.5, random_state=42)
+df = df.sample(frac=0.1, random_state=42)
 
 # Split the DataFrame into training and temp DataFrames
 train_df, temp_df = train_test_split(df, test_size=0.4, random_state=42)

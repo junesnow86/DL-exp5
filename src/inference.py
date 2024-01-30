@@ -56,5 +56,8 @@ def translate(model, src_sentence, text_transform, vocab_transform, device):
             tgt_hat = model(src, tgt_input)
             tgt_input[0][i] = torch.argmax(tgt_hat[0][i-1])
 
-    output_sentence = " ".join(vocab_transform[TGT_LANGUAGE].lookup_tokens(list(tgt_input[0].cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
+    print(tgt_input[0])
+
+    # output_sentence = " ".join(vocab_transform[TGT_LANGUAGE].lookup_tokens(list(tgt_input[0].cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
+    output_sentence = " ".join(vocab_transform[TGT_LANGUAGE].lookup_tokens(list(tgt_input[0].cpu().numpy())))
     print(output_sentence)
