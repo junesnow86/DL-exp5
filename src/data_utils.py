@@ -14,6 +14,8 @@ UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 0, 1, 2, 3
 # Make sure the tokens are in order of their indices to properly insert them in vocab
 special_symbols = ['<unk>', '<pad>', '<bos>', '<eos>']
 
+MAX_LEN = 200
+
 def create_data_iter(file_path: str) -> Iterator[Tuple[str, str]]:
     with open(file_path, 'r', encoding='utf-8') as file:
         tsv_reader = csv.reader(file, delimiter='\t')
@@ -40,6 +42,10 @@ def tensor_transform(token_ids: List[int]):
     return torch.cat((torch.tensor([BOS_IDX]),
                       torch.tensor(token_ids),
                       torch.tensor([EOS_IDX])))
+
+# function to truncate token list
+def truncate_transform(token_ids: List[int], max_len: int = MAX_LEN):
+    return token_ids[:max_len-1] + [EOS_IDX]
 
 # During training, we need a subsequent word mask that will prevent the model from looking into the future words when making predictions. 
 def generate_square_subsequent_mask(sz, device):

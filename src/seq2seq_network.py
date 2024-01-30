@@ -45,7 +45,7 @@ def attention(query, key, value, mask=None):
 
 # helper Module that adds positional encoding to the token embedding to introduce a notion of word order.
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model: int, max_seq_len: int=120):
+    def __init__(self, d_model: int, max_seq_len: int=200):
         super().__init__()
 
         # Assume d_model is an even number for convenience
@@ -63,7 +63,7 @@ class PositionalEncoding(nn.Module):
     def forward(self, x: torch.Tensor):
         n, seq_len, d_model = x.shape
         pe: torch.Tensor = self.pe
-        assert seq_len <= pe.shape[1]
+        assert seq_len <= pe.shape[1], f"Sequence length {seq_len} is longer than maximum sequence length {pe.shape[1]}"
         assert d_model == pe.shape[2]
         rescaled_x = x * d_model**0.5
         return rescaled_x + pe[:, 0:seq_len, :]
@@ -154,7 +154,7 @@ class DecoderLayer(nn.Module):
         return x
 
 class Encoder(nn.Module):
-    def __init__(self, vocab_size, pad_idx, n_layer, n_head, d_model, d_ff, dropout=0.1, max_seq_len=120):
+    def __init__(self, vocab_size, pad_idx, n_layer, n_head, d_model, d_ff, dropout=0.1, max_seq_len=200):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model, padding_idx=pad_idx)
         self.pos_embedding = PositionalEncoding(d_model, max_seq_len)
@@ -171,7 +171,7 @@ class Encoder(nn.Module):
         return x
 
 class Decoder(nn.Module):
-    def __init__(self, vocab_size, pad_idx, n_layer, n_head, d_model, d_ff, dropout=0.1, max_seq_len=120):
+    def __init__(self, vocab_size, pad_idx, n_layer, n_head, d_model, d_ff, dropout=0.1, max_seq_len=200):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model, padding_idx=pad_idx)
         self.pos_embedding = PositionalEncoding(d_model, max_seq_len)
@@ -198,7 +198,7 @@ class MyTransformer(nn.Module):
                  d_model,
                  d_ff,
                  dropout=0.1,
-                 max_seq_len=120):
+                 max_seq_len=200):
         super().__init__()
         self.encoder = Encoder(src_vocab_size, pad_idx, n_layer, n_head, 
                                d_model, d_ff, dropout, max_seq_len)

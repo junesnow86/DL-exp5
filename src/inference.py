@@ -3,8 +3,10 @@ import torch
 from data_utils import (
     BOS_IDX,
     EOS_IDX,
+    PAD_IDX,
     SRC_LANGUAGE,
     TGT_LANGUAGE,
+    MAX_LEN,
     generate_square_subsequent_mask,
 )
 
@@ -42,3 +44,17 @@ def translate(model: torch.nn.Module, src_sentence: str, text_transform, vocab_t
     tgt_tokens = greedy_decode(
         model,  src, src_mask, max_len=num_tokens + 5, start_symbol=BOS_IDX).flatten()
     return " ".join(vocab_transform[TGT_LANGUAGE].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
+
+def translate(model, src_sentence, text_transform, vocab_transform, device):
+    src = text_transform[SRC_LANGUAGE](src_sentence).view(1, -1).to(device)
+    tgt_input = torch.ones(1, MAX_LEN).fill_(PAD_IDX).type(torch.long).to(device)
+    tgt_input[0][0] = BOS_IDX
+
+    model.eval()
+    with torch.no_grad():
+        for i in range(MAX_LEN - 1):
+            tgt_hat = model(src, tgt_input)
+            tgt_input[0][i] = torch.argmax(tgt_hat[0][i-1])
+
+    output_sentence = " ".join(vocab_transform[TGT_LANGUAGE].lookup_tokens(list(tgt_input[0].cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
+    print(output_sentence)

@@ -1,5 +1,4 @@
 import torch
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from data_utils import PAD_IDX
@@ -38,9 +37,10 @@ def train(model, optimizer, train_dataloader, loss_fn, device, num_epochs):
 
 
 if __name__ == '__main__':
-    NUM_EPOCH = 20
-    BATCH_SIZE = 128
-    LR = 0.0003
+    NUM_EPOCH = 1
+    BATCH_SIZE = 16
+    LR = 0.001
+    MAX_LEN = 120
     d_model = 512
     d_ff = 2048
     n_layer = 6
@@ -62,6 +62,7 @@ if __name__ == '__main__':
         create_data_iter,
         sequential_transforms,
         tensor_transform,
+        truncate_transform
     )
 
     token_transform = {}
@@ -83,9 +84,11 @@ if __name__ == '__main__':
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
         text_transform[ln] = sequential_transforms(token_transform[ln], #Tokenization
                                                 vocab_transform[ln], #Numericalization
+                                                lambda token_ids: truncate_transform(token_ids, MAX_LEN-1), # Truncation
                                                 tensor_transform) # Add BOS/EOS and create tensor
 
     # Load data
+    from torch.utils.data import DataLoader
     train_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/train.tsv')
     train_dataloader = DataLoader(list(train_iter), 
                                   batch_size=BATCH_SIZE, 
@@ -102,3 +105,7 @@ if __name__ == '__main__':
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 
     train(model, optimizer, train_dataloader, loss_fn, DEVICE, NUM_EPOCH)
+
+    from inference import translate
+    src_sentence = 'In fact, Egyptian President Mohamed Morsi is seeking more financial aid from the US and the International Monetary Fund, and wants his coming visit to Washington, DC, to be a success.'
+    translate(model, src_sentence, text_transform, vocab_transform, DEVICE)
