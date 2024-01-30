@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 
-    # train(model, optimizer, train_dataloader, loss_fn, DEVICE, NUM_EPOCH, scheduler=scheduler)
+    train(model, optimizer, train_dataloader, loss_fn, DEVICE, NUM_EPOCH, scheduler=scheduler)
 
     from inference import translate
     src_sentence = 'The school lunch program is the largest discrete market for low-cost, healthy food.'
