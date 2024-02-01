@@ -73,7 +73,6 @@ class MultiHeadAttention(nn.Module):
         # d_k = d_v = d_model // n_head
         # self.d_k = self.d_v = d_model // n_head
         self.d_k = d_model // n_head
-        self.d_v = d_model // n_head
         self.n_head = n_head
         self.d_model = d_model
 
@@ -84,14 +83,15 @@ class MultiHeadAttention(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, q, k, v, mask=None):
-        assert q.shape[0] == k.shape[0] == v.shape[0]  # batch should be the same
+        assert q.shape[0] == k.shape[0]  # batch should be the same
+        assert q.shape[0] == v.shape[0]  # batch should be the same
         assert k.shape[1] == v.shape[1]  # the sequence length of k and v should be the same
         
         n, q_len = q.shape[:2]
         k_len = k.shape[1]
         q_ = self.Q(q).reshape(n, q_len, self.n_head, self.d_k).transpose(1, 2)
         k_ = self.K(k).reshape(n, k_len, self.n_head, self.d_k).transpose(1, 2)
-        v_ = self.V(v).reshape(n, k_len, self.n_head, self.d_v).transpose(1, 2)
+        v_ = self.V(v).reshape(n, k_len, self.n_head, self.d_k).transpose(1, 2)
 
         attention_res = attention(q_, k_, v_, mask)
         concat_res = attention_res.transpose(1, 2).reshape(n, q_len, self.d_model)
