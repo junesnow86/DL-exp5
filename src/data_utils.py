@@ -3,8 +3,6 @@ from typing import Any, Dict, Iterable, Iterator, List, Tuple
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
-from torchtext.data.utils import get_tokenizer
-from torchtext.vocab import build_vocab_from_iterator
 
 SRC_LANGUAGE = 'en'
 TGT_LANGUAGE = 'zh'
@@ -44,9 +42,9 @@ def tensor_transform(token_ids: List[int]):
                       torch.tensor([EOS_IDX])))
 
 # function to truncate token list
-def truncate_transform(token_ids: List[int], max_len: int = MAX_LEN):
+def truncate_transform(token_ids: torch.Tensor, max_len: int = MAX_LEN):
     if len(token_ids) > max_len:
-        return token_ids[:max_len-1] + [EOS_IDX]
+        return torch.cat((token_ids[:max_len-1], torch.tensor([EOS_IDX])))
     else:
         return token_ids
 
