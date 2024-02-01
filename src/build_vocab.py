@@ -3,12 +3,12 @@ from timeit import default_timer as timer
 
 import torch
 from torchtext.data.utils import get_tokenizer
+from torchtext.vocab import build_vocab_from_iterator
 
 from data_utils import (
     SRC_LANGUAGE,
     TGT_LANGUAGE,
     UNK_IDX,
-    build_vocab_from_iterator,
     create_data_iter,
     special_symbols,
     yield_tokens,
