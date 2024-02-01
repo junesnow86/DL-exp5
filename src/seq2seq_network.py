@@ -178,7 +178,14 @@ class Encoder(nn.Module):
         return x
 
 class Decoder(nn.Module):
-    def __init__(self, vocab_size, pad_idx, n_layer, n_head, d_model, d_ff, dropout=0.1, max_seq_len=200):
+    def __init__(self, 
+                 vocab_size, 
+                 pad_idx, 
+                 n_layer, 
+                 n_head, 
+                 d_model, 
+                 d_ff, dropout=0.1, 
+                 max_seq_len=200):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model, padding_idx=pad_idx)
         self.pos_embedding = PositionalEncoding(d_model, max_seq_len)
