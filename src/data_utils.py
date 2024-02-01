@@ -45,7 +45,10 @@ def tensor_transform(token_ids: List[int]):
 
 # function to truncate token list
 def truncate_transform(token_ids: List[int], max_len: int = MAX_LEN):
-    return token_ids[:max_len-1] + [EOS_IDX]
+    if len(token_ids) > max_len:
+        return token_ids[:max_len-1] + [EOS_IDX]
+    else:
+        return token_ids
 
 # During training, we need a subsequent word mask that will prevent the model from looking into the future words when making predictions. 
 def generate_square_subsequent_mask(sz, device):
