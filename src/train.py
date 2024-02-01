@@ -5,6 +5,7 @@ from data_utils import PAD_IDX
 
 
 def train(model, optimizer, train_dataloader, loss_fn, device, num_epochs, scheduler=None):
+    model.to(device)
     for epoch in range(1, num_epochs+1):
         progress_bar = tqdm(train_dataloader, total=len(train_dataloader), desc='training')
         for src, tgt in progress_bar:
@@ -37,12 +38,15 @@ def train(model, optimizer, train_dataloader, loss_fn, device, num_epochs, sched
 
             # Update tqdm progress bar with the latest loss value
             progress_bar.set_postfix({'loss': f'{loss.item()/len(src):.4f}'})
+            progress_bar.set_postfix({'acc': f'{acc.item():.4f}'})
+
+    return model.to('cpu')
 
 
 if __name__ == '__main__':
-    NUM_EPOCH = 1
-    BATCH_SIZE = 16
-    LR = 0.01
+    NUM_EPOCH = 10
+    BATCH_SIZE = 64
+    LR = 0.001
     MAX_LEN = 120
     d_model = 512
     d_ff = 2048
@@ -87,8 +91,8 @@ if __name__ == '__main__':
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
         text_transform[ln] = sequential_transforms(token_transform[ln], #Tokenization
                                                 vocab_transform[ln], #Numericalization
-                                                lambda token_ids: truncate_transform(token_ids, MAX_LEN-1), # Truncation
-                                                tensor_transform) # Add BOS/EOS and create tensor
+                                                tensor_transform, # Add BOS/EOS and create tensor
+                                                lambda token_ids: truncate_transform(token_ids, MAX_LEN)) # Truncation
 
     # Load data
     from torch.utils.data import DataLoader
@@ -101,7 +105,7 @@ if __name__ == '__main__':
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     from seq2seq_network import MyTransformer
-    model = MyTransformer(SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, PAD_IDX, n_layer, n_head, d_model, d_ff, dropout).to(DEVICE)
+    model = MyTransformer(SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, PAD_IDX, n_layer, n_head, d_model, d_ff, dropout)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
@@ -110,7 +114,8 @@ if __name__ == '__main__':
 
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 
-    train(model, optimizer, train_dataloader, loss_fn, DEVICE, NUM_EPOCH, scheduler=scheduler)
+    trained_model = train(model, optimizer, train_dataloader, loss_fn, DEVICE, NUM_EPOCH, scheduler=scheduler)
+    torch.save(trained_model.state_dict(), '../checkpoints/model.pth')
 
     from inference import translate
     src_sentence = 'The school lunch program is the largest discrete market for low-cost, healthy food.'
