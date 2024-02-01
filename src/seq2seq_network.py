@@ -71,7 +71,9 @@ class MultiHeadAttention(nn.Module):
 
         assert d_model % n_head == 0
         # d_k = d_v = d_model // n_head
-        self.d_k = self.d_v = d_model // n_head
+        # self.d_k = self.d_v = d_model // n_head
+        self.d_k = d_model // n_head
+        self.d_v = d_model // n_head
         self.n_head = n_head
         self.d_model = d_model
 
