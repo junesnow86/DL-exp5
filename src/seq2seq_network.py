@@ -1,5 +1,3 @@
-import math
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -24,7 +22,6 @@ def generate_mask(q_pad, k_pad, with_left_mask=False):
         mask[i, :, :, k_pad[i]] = 1
     return mask.bool()
 
-
 def attention(query, key, value, mask=None):
     '''The dtype of mask must be bool
     query shape: [n, heads, q_len, d_k]
@@ -36,7 +33,7 @@ def attention(query, key, value, mask=None):
     assert query.shape[-1] == key.shape[-1]
     d_k = key.shape[-1]
     # tmp shape: [n, heads, q_len, k_len]
-    tmp = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    tmp = torch.matmul(query, key.transpose(-2, -1)) / (d_k ** 0.5)
     if mask is not None:
         tmp = tmp.masked_fill(mask, float(-MY_INF))
     tmp = F.softmax(tmp, dim=-1)
@@ -61,7 +58,7 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe, False)
 
     def forward(self, x: torch.Tensor):
-        n, seq_len, d_model = x.shape
+        _, seq_len, d_model = x.shape
         pe: torch.Tensor = self.pe
         assert seq_len <= pe.shape[1], f"Sequence length {seq_len} is longer than maximum sequence length {pe.shape[1]}"
         assert d_model == pe.shape[2]
