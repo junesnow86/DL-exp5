@@ -8,11 +8,11 @@ SRC_LANGUAGE = 'en'
 TGT_LANGUAGE = 'zh'
 
 # Define special symbols and indices
-UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 0, 1, 2, 3
+PAD_IDX, UNK_IDX, BOS_IDX, EOS_IDX = 0, 1, 2, 3
 # Make sure the tokens are in order of their indices to properly insert them in vocab
-special_symbols = ['<unk>', '<pad>', '<bos>', '<eos>']
+special_symbols = ['<pad>', '<unk>', '<bos>', '<eos>']
 
-MAX_LEN = 200
+MAX_LEN = 100
 
 def create_data_iter(file_path: str) -> Iterator[Tuple[str, str]]:
     with open(file_path, 'r', encoding='utf-8') as file:
