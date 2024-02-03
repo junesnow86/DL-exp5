@@ -119,7 +119,7 @@ def train(model,
 
 if __name__ == '__main__':
     NUM_EPOCH = 20
-    BATCH_SIZE = 32
+    BATCH_SIZE = 8
     LR = 0.0001
     MAX_LEN = 150
     d_model = 512
@@ -198,36 +198,36 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.9, patience=10, verbose=True)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95, verbose=True)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5 * LR, steps_per_epoch=len(train_dataloader), epochs=NUM_EPOCH)
 
     print('>>> Start training...')
-    # train(
-    #     model=model, 
-    #     optimizer=optimizer, 
-    #     train_dataloader=train_dataloader, 
-    #     val_dataloader=val_dataloader,
-    #     loss_fn=loss_fn, 
-    #     device=DEVICE, 
-    #     num_epochs=NUM_EPOCH,
-    #     scheduler=scheduler,
-    #     wait=3,
-    #     plot=True,
-    #     figure_file='../figures/back-translation_loss_02032200.png')
+    train(
+        model=model, 
+        optimizer=optimizer, 
+        train_dataloader=train_dataloader, 
+        val_dataloader=val_dataloader,
+        loss_fn=loss_fn, 
+        device=DEVICE, 
+        num_epochs=NUM_EPOCH,
+        scheduler=scheduler,
+        wait=3,
+        plot=True,
+        # figure_file='../figures/news-commentary_loss_02032200.png')
+        figure_file='../figures/back-translation_loss_02032200.png')
     print(f'>>> Training finished.')
-    # torch.save(model.state_dict(), '../checkpoints/back-translation_02032200.pth')
+    # torch.save(model.state_dict(), '../checkpoints/news-commentary_02032200.pth')
+    torch.save(model.state_dict(), '../checkpoints/back-translation_02032200.pth')
 
     # Test
-    # bleu_score = evaluate(model, test_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
-    # print(f'Validation BLEU score: {bleu_score:.4f}')
+    bleu_score = evaluate(model, test_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
+    print(f'Validation BLEU score: {bleu_score:.4f}')
 
+    # Translate
     from evaluate import translate
     num_translated = 0
     results = []
+    # test_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/test.tsv')
     test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
-    import time
-    tic = time.time()
     for src, tgt in tqdm(test_iter, total=50, desc='translating'):
         src = [src]
         tgt = [tgt]
@@ -235,13 +235,10 @@ if __name__ == '__main__':
         results.append({'src': src[0], 'tgt': tgt[0], 'translated': translated[0]})
         num_translated += 1
 
-        # toc = time.time()
-        # print(f'>>> Translated {num_translated} sentences, time: {toc - tic:.2f}s')
-
         if num_translated == 50:
             break
 
-
+    # with open('../results/news-commentary_02032200.json', 'w', encoding='utf-8') as file:
     with open('../results/back-translation_02032200.json', 'w', encoding='utf-8') as file:
         import json
         json.dump(results, file, ensure_ascii=False, indent=4)
