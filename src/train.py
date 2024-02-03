@@ -13,7 +13,7 @@ def train(model,
           device, 
           num_epochs, 
           scheduler=None,
-          wait=2,
+          wait=3,
           plot=True,
           figure_file='../loss.png'):
     model.to(device)
@@ -46,7 +46,6 @@ def train(model,
             tgt_label = torch.reshape(tgt_label, (n * seq_len, ))
             loss = loss_fn(logits, tgt_label)
 
-
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -58,7 +57,7 @@ def train(model,
             # Update tqdm progress bar with the latest loss value
             epoch_loss += loss.item() * len(src)
             total_samples += len(src)
-            progress_bar.set_postfix({'loss': f'{loss.item()/len(src):.4f}', 'acc': f'{acc:.4f}'})
+            progress_bar.set_postfix({'loss': f'{loss.item():.4f}', 'acc': f'{acc:.4f}'})
 
             # Calculate training BLEU score
             # bleu_score_train = evaluate_batch(model, src, tgt, tgt_vocab_transform)
@@ -92,7 +91,7 @@ def train(model,
 
                 val_loss += loss.item() * len(src)
                 total_samples += len(src)
-                progress_bar.set_postfix({'loss': f'{loss.item()/len(src):.4f}', 'acc': f'{acc:.4f}'})
+                progress_bar.set_postfix({'loss': f'{loss.item():.4f}', 'acc': f'{acc:.4f}'})
         val_loss = val_loss / total_samples
         val_losses.append(val_loss)
         print(f'Epoch {epoch}/{num_epochs}, Train loss: {training_losses[-1]:.4f}, Val loss: {val_losses[-1]:.4f}')
@@ -122,7 +121,7 @@ if __name__ == '__main__':
     NUM_EPOCH = 20
     BATCH_SIZE = 32
     LR = 0.0001
-    MAX_LEN = 200
+    MAX_LEN = 150
     d_model = 512
     d_ff = 2048
     n_layer = 6
@@ -203,12 +202,13 @@ if __name__ == '__main__':
         device=DEVICE, 
         num_epochs=NUM_EPOCH,
         scheduler=scheduler,
+        wait=3,
         plot=True,
-        figure_file='../figures/loss_02031631.png')
+        figure_file='../figures/loss_02032010.png')
     # bleu_score = evaluate(model, train_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
     # print(f'>>> Training finished. Train BLEU score: {bleu_score:.4f}')
     print(f'>>> Training finished.')
-    torch.save(model.state_dict(), '../checkpoints/model_02031631.pth')
+    torch.save(model.state_dict(), '../checkpoints/model_02032010.pth')
 
     # Validation
     bleu_score = evaluate(model, val_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
