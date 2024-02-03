@@ -39,7 +39,7 @@ def translate_helper(model, src_tensor_batch, tgt_tensor_batch):
     return tgt_tensor_batch
 
 @torch.no_grad()
-def translate(model, src_sentence_batch, text_transform, tgt_vocab_transform):
+def translate(model, src_sentence_batch, text_transform, tgt_vocab_transform, device='cuda'):
     '''
     translate a batch of src sentences to tgt sentences
     '''
@@ -50,6 +50,9 @@ def translate(model, src_sentence_batch, text_transform, tgt_vocab_transform):
     src_tensor_batch = torch.stack(src_tensor_batch)
     tgt_tensor_batch = torch.ones(len(src_sentence_batch), MAX_LEN).fill_(BOS_IDX).type(torch.long)
 
+    model.to(device)
+    src_tensor_batch = src_tensor_batch.to(device)
+    tgt_tensor_batch = tgt_tensor_batch.to(device)
     tgt_tensor_batch = translate_helper(model, src_tensor_batch, tgt_tensor_batch)
 
     output_sentences = get_batch_references(tgt_tensor_batch, tgt_vocab_transform)
