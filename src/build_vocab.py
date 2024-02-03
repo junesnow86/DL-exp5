@@ -32,7 +32,7 @@ if __name__ == '__main__':
             vocab_transform[ln] = torch.load(vocab_file)
             continue
 
-        data_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/news-commentary-v15.en-zh.tsv')
+        data_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/news-commentary-v15_sample.en-zh.tsv')
         # Create torchtext's Vocab object
         vocab_transform[ln] = build_vocab_from_iterator(yield_tokens(token_transform, data_iter, ln),
                                                         min_freq=1,
