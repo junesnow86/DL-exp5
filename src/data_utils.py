@@ -48,24 +48,6 @@ def truncate_transform(token_ids: torch.Tensor, max_len: int = MAX_LEN):
     else:
         return token_ids
 
-# During training, we need a subsequent word mask that will prevent the model from looking into the future words when making predictions. 
-def generate_square_subsequent_mask(sz, device):
-    mask = (torch.triu(torch.ones((sz, sz), device=device)) == 1).transpose(0, 1)
-    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-    return mask
-
-# We will also need masks to hide source and target padding tokens. Below, let’s define a function that will take care of both.
-def create_mask(src, tgt, device):
-    src_seq_len = src.shape[0]
-    tgt_seq_len = tgt.shape[0]
-
-    tgt_mask = generate_square_subsequent_mask(tgt_seq_len, device)
-    src_mask = torch.zeros((src_seq_len, src_seq_len),device=device).type(torch.bool)
-
-    src_padding_mask = (src == PAD_IDX).transpose(0, 1)
-    tgt_padding_mask = (tgt == PAD_IDX).transpose(0, 1)
-    return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
-
 # function to collate data samples into batch tensors
 def collate_fn(batch, text_transform):
     src_batch, tgt_batch = [], []
