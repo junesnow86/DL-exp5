@@ -102,7 +102,7 @@ def train(model,
         else:
             cnt += 1
             if cnt == wait:
-                print(f'Early stopping at epoch {epoch}')
+                print(f'Early stop at epoch {epoch}')
                 break
 
     if plot:
@@ -129,9 +129,9 @@ if __name__ == '__main__':
     dropout = 0.2
 
     # Set seed
-    # seed = 10
-    # torch.manual_seed(seed)
-    # torch.cuda.manual_seed(seed)
+    seed = 10
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
     # Load vocab
     import os
@@ -148,7 +148,8 @@ if __name__ == '__main__':
         truncate_transform,
     )
 
-    vocab_save_dir = '/home/ljt/DL-exp5/vocab/news-commentary-v15'
+    # vocab_save_dir = '/home/ljt/DL-exp5/vocab/news-commentary-v15'
+    vocab_save_dir = '/home/ljt/DL-exp5/vocab/back-translation'
     vocab_transform = {}
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
         vocab_file = os.path.join(vocab_save_dir, f'vocab_{ln}.pt')
@@ -169,14 +170,23 @@ if __name__ == '__main__':
 
     # Load data
     from torch.utils.data import DataLoader
-    train_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/train.tsv')
+    # train_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/train.tsv')
+    train_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/train.tsv')
     train_dataloader = DataLoader(list(train_iter), 
                                   batch_size=BATCH_SIZE, 
                                   shuffle=True, 
                                   collate_fn=lambda data: collate_fn(data, text_transform))
 
-    val_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/val.tsv')
+    # val_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/val.tsv')
+    val_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/val.tsv')
     val_dataloader = DataLoader(list(val_iter), 
+                                  batch_size=BATCH_SIZE, 
+                                  shuffle=True, 
+                                  collate_fn=lambda data: collate_fn(data, text_transform))
+
+    # test_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/test.tsv')
+    test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
+    test_dataloader = DataLoader(list(test_iter), 
                                   batch_size=BATCH_SIZE, 
                                   shuffle=True, 
                                   collate_fn=lambda data: collate_fn(data, text_transform))
@@ -193,27 +203,45 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5 * LR, steps_per_epoch=len(train_dataloader), epochs=NUM_EPOCH)
 
     print('>>> Start training...')
-    train(
-        model=model, 
-        optimizer=optimizer, 
-        train_dataloader=train_dataloader, 
-        val_dataloader=val_dataloader,
-        loss_fn=loss_fn, 
-        device=DEVICE, 
-        num_epochs=NUM_EPOCH,
-        scheduler=scheduler,
-        wait=3,
-        plot=True,
-        figure_file='../figures/loss_02032010.png')
-    # bleu_score = evaluate(model, train_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
-    # print(f'>>> Training finished. Train BLEU score: {bleu_score:.4f}')
+    # train(
+    #     model=model, 
+    #     optimizer=optimizer, 
+    #     train_dataloader=train_dataloader, 
+    #     val_dataloader=val_dataloader,
+    #     loss_fn=loss_fn, 
+    #     device=DEVICE, 
+    #     num_epochs=NUM_EPOCH,
+    #     scheduler=scheduler,
+    #     wait=3,
+    #     plot=True,
+    #     figure_file='../figures/back-translation_loss_02032200.png')
     print(f'>>> Training finished.')
-    torch.save(model.state_dict(), '../checkpoints/model_02032010.pth')
+    # torch.save(model.state_dict(), '../checkpoints/back-translation_02032200.pth')
 
-    # Validation
-    bleu_score = evaluate(model, val_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
-    print(f'Validation BLEU score: {bleu_score:.4f}')
+    # Test
+    # bleu_score = evaluate(model, test_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
+    # print(f'Validation BLEU score: {bleu_score:.4f}')
 
-    # from inference import translate
-    # src_sentence = 'The school lunch program is the largest discrete market for low-cost, healthy food.'
-    # translate(model, src_sentence, text_transform, vocab_transform, DEVICE)
+    from evaluate import translate
+    num_translated = 0
+    results = []
+    test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
+    import time
+    tic = time.time()
+    for src, tgt in tqdm(test_iter, total=50, desc='translating'):
+        src = [src]
+        tgt = [tgt]
+        translated = translate(model, src, text_transform, vocab_transform[TGT_LANGUAGE], DEVICE)
+        results.append({'src': src[0], 'tgt': tgt[0], 'translated': translated[0]})
+        num_translated += 1
+
+        # toc = time.time()
+        # print(f'>>> Translated {num_translated} sentences, time: {toc - tic:.2f}s')
+
+        if num_translated == 50:
+            break
+
+
+    with open('../results/back-translation_02032200.json', 'w', encoding='utf-8') as file:
+        import json
+        json.dump(results, file, ensure_ascii=False, indent=4)
