@@ -92,22 +92,15 @@ def evaluate(model, val_dataloader, tgt_vocab_transform, device='cuda'):
     model.eval()
     total_score = 0.0
 
-    import time
     progress_bar = tqdm(val_dataloader, total=len(val_dataloader), desc='evaluation')
     for src, tgt in progress_bar:
         src = src.long().to(device)
         tgt = tgt.long().to(device)
 
-        tic = time.time()
         references = get_batch_references(tgt, tgt_vocab_transform)
-        toc = time.time()
-        print(f'get_batch_references takes {toc - tic:.4f} seconds')
 
         tgt_for_hypo = torch.ones(len(tgt), MAX_LEN).fill_(BOS_IDX).type(torch.long).to(src.device)
-        tic = time.time()
         hypotheses = translate_helper(model, src, tgt_for_hypo)
-        toc = time.time()
-        print(f'translate_helper takes {toc - tic:.4f} seconds')
         hypotheses = get_batch_references(hypotheses, tgt_vocab_transform)
 
         # Calculate BLEU score
