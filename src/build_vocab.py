@@ -23,6 +23,7 @@ if __name__ == '__main__':
 
     # build vocab
     vocab_save_dir = '/home/ljt/DL-exp5/vocab/news-commentary-v15'
+    # vocab_save_dir = '/home/ljt/DL-exp5/vocab/back-translation'
     print('building vocab...')
     start_time = timer()
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
@@ -33,6 +34,7 @@ if __name__ == '__main__':
             continue
 
         data_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/news-commentary-v15_sample.en-zh.tsv')
+        # data_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/news.en-zh.tsv')
         # Create torchtext's Vocab object
         vocab_transform[ln] = build_vocab_from_iterator(yield_tokens(token_transform, data_iter, ln),
                                                         min_freq=1,
