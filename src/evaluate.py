@@ -13,7 +13,7 @@ from data_utils import (
 
 @torch.no_grad()
 def ids2sentence(token_ids: torch.Tensor, vocab_transform):
-    sentence = "".join(vocab_transform.lookup_tokens(list(token_ids.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
+    sentence = " ".join(vocab_transform.lookup_tokens(list(token_ids.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
     return sentence
 
 @torch.no_grad()
@@ -94,6 +94,7 @@ def evaluate(model, val_dataloader, tgt_vocab_transform, device='cuda'):
     model.to(device)
     model.eval()
     total_score = 0.0
+    total_samples = 0
 
     progress_bar = tqdm(val_dataloader, total=len(val_dataloader), desc='evaluation')
     for src, tgt in progress_bar:
@@ -108,10 +109,11 @@ def evaluate(model, val_dataloader, tgt_vocab_transform, device='cuda'):
 
         # Calculate BLEU score
         assert len(references) == len(hypotheses), f'len(references)={len(references)}, len(hypotheses)={len(hypotheses)}'
+        total_samples += len(references)
         for reference, hypothesis in zip(references, hypotheses):
             reference = reference.split()
             hypothesis = hypothesis.split()
-            score = sentence_bleu([reference], hypothesis, smoothing_function=SmoothingFunction().method1)
+            score = sentence_bleu([reference], hypothesis, weights=(1/3, 1/3, 1/3), smoothing_function=SmoothingFunction().method4)
             total_score += score
 
-    return total_score / len(val_dataloader)
+    return total_score / total_samples
