@@ -1,112 +1,209 @@
 import os
-import random
-from timeit import default_timer as timer
+import json
+from tqdm import tqdm
 
-import numpy as np
 import torch
+from torch.utils.data import DataLoader
 from torchtext.data.utils import get_tokenizer
 
-from data_utils import (
-    SRC_LANGUAGE,
-    TGT_LANGUAGE,
-    UNK_IDX,
-    build_vocab_from_iterator,
-    collate_fn,
-    create_data_iter,
-    sequential_transforms,
-    special_symbols,
-    tensor_transform,
-    yield_tokens,
-)
-from evaluate import evaluate
-from inference import translate
-from seq2seq_network import Seq2SeqTransformer
-from train import train_epoch
+from data_utils import PAD_IDX, SRC_LANGUAGE, TGT_LANGUAGE, UNK_IDX, create_data_iter, collate_fn, sequential_transforms, tensor_transform, truncate_transform
+from evaluate import evaluate, translate
+from train import train
+from seq2seq_network import MyTransformer
 
-if __name__ == '__main__':
-    token_transform = {}
+# Training hyperparameters
+NUM_EPOCH = 20
+BATCH_SIZE = 32
+LR = 0.0001
+
+# Model hyperparameters
+MAX_LEN = 150
+d_model = 512
+d_ff = 2048
+n_layer = 6
+n_head = 8
+dropout = 0.2
+
+# Set seed
+seed = 10
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+
+
+def news_commentary(root_dir='/home/ljt/DL-exp5'):
+    # Load vocab
+    vocab_save_dir = os.path.join(root_dir, 'vocab/news-commentary-v15')
     vocab_transform = {}
-
-    token_transform[SRC_LANGUAGE] = get_tokenizer('spacy', language='en_core_web_sm')
-    token_transform[TGT_LANGUAGE] = get_tokenizer('spacy', language='zh_core_web_sm')
-
-    # build vocab
-    vocab_save_dir = '/storage/1008ljt/DL-exp5/vocab/news-commentary-v15'
-    print('building vocab...')
-    start_time = timer()
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
         vocab_file = os.path.join(vocab_save_dir, f'vocab_{ln}.pt')
-        if os.path.exists(vocab_file):
-            print(f'vocab file {vocab_file} exists, skip building vocab')
-            vocab_transform[ln] = torch.load(vocab_file)
-            continue
-
-        data_iter = create_data_iter('/storage/1008ljt/DL-exp5/data/news-commentary-v15.en-zh.tsv')
-        # Create torchtext's Vocab object
-        vocab_transform[ln] = build_vocab_from_iterator(yield_tokens(token_transform, data_iter, ln),
-                                                        min_freq=1,
-                                                        specials=special_symbols,
-                                                        special_first=True)
-        vocab_transform[ln].set_default_index(UNK_IDX)
-        torch.save(vocab_transform[ln], vocab_file)
-    end_time = timer()
-    print(f'vocab built! time cost: {(end_time - start_time):.3f}s')
-
+        vocab_transform[ln] = torch.load(vocab_file)
     SRC_VOCAB_SIZE = len(vocab_transform[SRC_LANGUAGE])
     TGT_VOCAB_SIZE = len(vocab_transform[TGT_LANGUAGE])
-    print(SRC_VOCAB_SIZE, TGT_VOCAB_SIZE)
 
+    token_transform = {}
+    token_transform[SRC_LANGUAGE] = get_tokenizer('spacy', language='en_core_web_trf')
+    token_transform[TGT_LANGUAGE] = get_tokenizer('spacy', language='zh_core_web_trf')
     # ``src`` and ``tgt`` language text transforms to convert raw strings into tensors indices
     text_transform = {}
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
         text_transform[ln] = sequential_transforms(token_transform[ln], #Tokenization
                                                 vocab_transform[ln], #Numericalization
-                                                tensor_transform) # Add BOS/EOS and create tensor
+                                                tensor_transform, # Add BOS/EOS and create tensor
+                                                lambda token_ids: truncate_transform(token_ids, MAX_LEN)) # Truncation
 
-    # set seed
-    seed = 10
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
+    # Load data
+    train_iter = create_data_iter(os.path.join(root_dir, 'data/news-commentary-v15/train.tsv'))
+    train_dataloader = DataLoader(list(train_iter), 
+                                  batch_size=BATCH_SIZE, 
+                                  shuffle=True, 
+                                  collate_fn=lambda data: collate_fn(data, text_transform))
+
+    val_iter = create_data_iter(os.path.join(root_dir, 'data/news-commentary-v15/val.tsv'))
+    val_dataloader = DataLoader(list(val_iter), 
+                                  batch_size=BATCH_SIZE, 
+                                  shuffle=True, 
+                                  collate_fn=lambda data: collate_fn(data, text_transform))
+
+    test_iter = create_data_iter(os.path.join(root_dir, 'data/news-commentary-v15/test.tsv'))
+    test_dataloader = DataLoader(list(test_iter), 
+                                  batch_size=BATCH_SIZE, 
+                                  shuffle=True, 
+                                  collate_fn=lambda data: collate_fn(data, text_transform))
+
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = MyTransformer(SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, 0, n_layer, n_head, d_model, d_ff, dropout)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5 * LR, steps_per_epoch=len(train_dataloader), epochs=NUM_EPOCH)
 
 
-    EMB_SIZE = 512
-    NHEAD = 8
-    FFN_HID_DIM = 512
-    BATCH_SIZE = 128
-    NUM_ENCODER_LAYERS = 3
-    NUM_DECODER_LAYERS = 3
+    print('>>> Start training news-commentary-v15...')
+    train(
+        model=model, 
+        optimizer=optimizer, 
+        train_dataloader=train_dataloader, 
+        val_dataloader=val_dataloader,
+        loss_fn=loss_fn, 
+        device=DEVICE, 
+        num_epochs=NUM_EPOCH,
+        scheduler=scheduler,
+        plot=True,
+        figure_file='../figures/news-commentary_loss_0205.png',
+        model_file='../checkpoints/news-commentary_0205.pth'
+        )
+    print(f'>>> Training finished.')
 
-    DEVICE = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    # Test
+    bleu_score = evaluate(model, test_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
+    print(f'Test BLEU score: {bleu_score:.4f}')
 
-    # create model
-    transformer = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE, 
-                                     NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, FFN_HID_DIM)
+    # Translate
+    from evaluate import translate
+    num_translated = 0
+    results = []
+    test_iter = create_data_iter(os.path.join(root_dir, 'data/news-commentary-v15/test.tsv'))
+    for src, tgt in tqdm(test_iter, total=50, desc='translating'):
+        src = [src]
+        tgt = [tgt]
+        translated = translate(model, src, text_transform, vocab_transform[TGT_LANGUAGE], DEVICE)
+        results.append({'src': src[0], 'tgt': tgt[0], 'translated': translated[0]})
+        num_translated += 1
 
-    # initialize parameters
-    for p in transformer.parameters():
-        if p.dim() > 1:
-            torch.nn.init.xavier_uniform_(p)
+        if num_translated == 50:
+            break
 
-    transformer = transformer.to(DEVICE)
+    with open('../results/news-commentary_0205.json', 'w', encoding='utf-8') as file:
+        import json
+        json.dump(results, file, ensure_ascii=False, indent=4)
 
-    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=UNK_IDX)
+def back_translation(root_dir='/home/ljt/DL-exp5'):
+    # Load vocab
+    vocab_save_dir = os.path.join(root_dir, 'vocab/back-translation')
+    vocab_transform = {}
+    for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
+        vocab_file = os.path.join(vocab_save_dir, f'vocab_{ln}.pt')
+        vocab_transform[ln] = torch.load(vocab_file)
+    SRC_VOCAB_SIZE = len(vocab_transform[SRC_LANGUAGE])
+    TGT_VOCAB_SIZE = len(vocab_transform[TGT_LANGUAGE])
 
-    optimizer = torch.optim.Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
+    token_transform = {}
+    token_transform[SRC_LANGUAGE] = get_tokenizer('spacy', language='en_core_web_trf')
+    token_transform[TGT_LANGUAGE] = get_tokenizer('spacy', language='zh_core_web_trf')
+    # ``src`` and ``tgt`` language text transforms to convert raw strings into tensors indices
+    text_transform = {}
+    for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
+        text_transform[ln] = sequential_transforms(token_transform[ln], #Tokenization
+                                                vocab_transform[ln], #Numericalization
+                                                tensor_transform, # Add BOS/EOS and create tensor
+                                                lambda token_ids: truncate_transform(token_ids, MAX_LEN)) # Truncation
 
-    # Training
-    print('>>> Start training...')
-    NUM_EPOCHS = 20
-    for epoch in range(1, NUM_EPOCHS+1):
-        train_iter = create_data_iter('/storage/1008ljt/DL-exp5/data/news-commentary-v15/train.tsv')
-        train_loss = train_epoch(transformer, optimizer, train_iter, lambda data: collate_fn(data, text_transform), loss_fn, BATCH_SIZE, DEVICE)
+    # Load data
+    train_iter = create_data_iter(os.path.join(root_dir, 'data/back-translation/train.tsv'))
+    train_dataloader = DataLoader(list(train_iter), 
+                                  batch_size=BATCH_SIZE, 
+                                  shuffle=True, 
+                                  collate_fn=lambda data: collate_fn(data, text_transform))
 
-        val_iter = create_data_iter('/storage/1008ljt/DL-exp5/data/news-commentary-v15/val.tsv')
-        val_loss = evaluate(transformer, val_iter, lambda data: collate_fn(data, text_transform), loss_fn, BATCH_SIZE, DEVICE)
+    val_iter = create_data_iter(os.path.join(root_dir, 'data/back-translation/val.tsv'))
+    val_dataloader = DataLoader(list(val_iter), 
+                                  batch_size=BATCH_SIZE, 
+                                  shuffle=True, 
+                                  collate_fn=lambda data: collate_fn(data, text_transform))
 
-        print(f'Epoch: {epoch}, Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}')
-    print('>>> Training finished!')
+    test_iter = create_data_iter(os.path.join(root_dir, 'data/back-translation/test.tsv'))
+    test_dataloader = DataLoader(list(test_iter), 
+                                  batch_size=BATCH_SIZE, 
+                                  shuffle=True, 
+                                  collate_fn=lambda data: collate_fn(data, text_transform))
 
-    # Inference
-    print(translate(transformer, 'A black dog eats food.', text_transform, vocab_transform))
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = MyTransformer(SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, 0, n_layer, n_head, d_model, d_ff, dropout)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5 * LR, steps_per_epoch=len(train_dataloader), epochs=NUM_EPOCH)
+
+
+    print('>>> Start training back-translation...')
+    train(
+        model=model, 
+        optimizer=optimizer, 
+        train_dataloader=train_dataloader, 
+        val_dataloader=val_dataloader,
+        loss_fn=loss_fn, 
+        device=DEVICE, 
+        num_epochs=NUM_EPOCH,
+        scheduler=scheduler,
+        plot=True,
+        figure_file='../figures/back-translation_loss_0205.png',
+        model_file='../checkpoints/back-translation_0205.pth',
+        )
+    print(f'>>> Training finished.')
+
+    # Test
+    bleu_score = evaluate(model, test_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
+    print(f'Test BLEU score: {bleu_score:.4f}')
+
+    # Translate
+    from evaluate import translate
+    num_translated = 0
+    results = []
+    test_iter = create_data_iter(os.path.join(root_dir, 'data/back-translation/test.tsv'))
+    for src, tgt in tqdm(test_iter, total=50, desc='translating'):
+        src = [src]
+        tgt = [tgt]
+        translated = translate(model, src, text_transform, vocab_transform[TGT_LANGUAGE], DEVICE)
+        results.append({'src': src[0], 'tgt': tgt[0], 'translated': translated[0]})
+        num_translated += 1
+
+        if num_translated == 50:
+            break
+
+    with open('../results/back-translation_0205.json', 'w', encoding='utf-8') as file:
+        import json
+        json.dump(results, file, ensure_ascii=False, indent=4)
+
+if __name__ == '__main__':
+    news_commentary()
+    back_translation()
