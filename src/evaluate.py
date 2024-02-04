@@ -13,7 +13,7 @@ from data_utils import (
 
 @torch.no_grad()
 def ids2sentence(token_ids: torch.Tensor, vocab_transform):
-    sentence = " ".join(vocab_transform.lookup_tokens(list(token_ids.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
+    sentence = "".join(vocab_transform.lookup_tokens(list(token_ids.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
     return sentence
 
 @torch.no_grad()
