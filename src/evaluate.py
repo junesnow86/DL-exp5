@@ -113,7 +113,7 @@ def evaluate(model, val_dataloader, tgt_vocab_transform, device='cuda'):
         for reference, hypothesis in zip(references, hypotheses):
             reference = reference.split()
             hypothesis = hypothesis.split()
-            score = sentence_bleu([reference], hypothesis, weights=(1/3, 1/3, 1/3), smoothing_function=SmoothingFunction().method4)
+            score = sentence_bleu([reference], hypothesis, weights=(0.8, 0.1, 0.1), smoothing_function=SmoothingFunction().method4)
             total_score += score
 
     return total_score / total_samples
