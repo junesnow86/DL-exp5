@@ -203,7 +203,6 @@ if __name__ == '__main__':
         device=DEVICE, 
         num_epochs=NUM_EPOCH,
         scheduler=scheduler,
-        wait=3,
         plot=True,
         figure_file='../figures/news-commentary_loss_02041310.png',
         # figure_file='../figures/back-translation_loss_02032200.png',
