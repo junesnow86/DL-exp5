@@ -15,7 +15,8 @@ def train(model,
           scheduler=None,
           wait=3,
           plot=True,
-          figure_file='../loss.png'):
+          figure_file='loss.png',
+          model_file='model.pth'):
     model.to(device)
     training_losses = []
     val_losses = []
@@ -98,6 +99,7 @@ def train(model,
 
         if val_loss < min_val_loss:
             min_val_loss = val_loss
+            torch.save(model.state_dict(), model_file)
             cnt = 0
         else:
             cnt += 1
@@ -119,7 +121,7 @@ def train(model,
 
 if __name__ == '__main__':
     NUM_EPOCH = 20
-    BATCH_SIZE = 8
+    BATCH_SIZE = 32
     LR = 0.0001
     MAX_LEN = 150
     d_model = 512
@@ -148,8 +150,8 @@ if __name__ == '__main__':
         truncate_transform,
     )
 
-    # vocab_save_dir = '/home/ljt/DL-exp5/vocab/news-commentary-v15'
-    vocab_save_dir = '/home/ljt/DL-exp5/vocab/back-translation'
+    vocab_save_dir = '/home/ljt/DL-exp5/vocab/news-commentary-v15'
+    # vocab_save_dir = '/home/ljt/DL-exp5/vocab/back-translation'
     vocab_transform = {}
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
         vocab_file = os.path.join(vocab_save_dir, f'vocab_{ln}.pt')
@@ -170,22 +172,22 @@ if __name__ == '__main__':
 
     # Load data
     from torch.utils.data import DataLoader
-    # train_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/train.tsv')
-    train_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/train.tsv')
+    train_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/train.tsv')
+    # train_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/train.tsv')
     train_dataloader = DataLoader(list(train_iter), 
                                   batch_size=BATCH_SIZE, 
                                   shuffle=True, 
                                   collate_fn=lambda data: collate_fn(data, text_transform))
 
-    # val_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/val.tsv')
-    val_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/val.tsv')
+    val_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/val.tsv')
+    # val_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/val.tsv')
     val_dataloader = DataLoader(list(val_iter), 
                                   batch_size=BATCH_SIZE, 
                                   shuffle=True, 
                                   collate_fn=lambda data: collate_fn(data, text_transform))
 
-    # test_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/test.tsv')
-    test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
+    test_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/test.tsv')
+    # test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
     test_dataloader = DataLoader(list(test_iter), 
                                   batch_size=BATCH_SIZE, 
                                   shuffle=True, 
@@ -212,11 +214,12 @@ if __name__ == '__main__':
         scheduler=scheduler,
         wait=3,
         plot=True,
-        # figure_file='../figures/news-commentary_loss_02032200.png')
-        figure_file='../figures/back-translation_loss_02032200.png')
+        figure_file='../figures/news-commentary_loss_02041310.png',
+        # figure_file='../figures/back-translation_loss_02032200.png',
+        model_file='../checkpoints/news-commentary_02041310.pth'
+        # model_file='../checkpoints/back-translation_02032200.pth',
+        )
     print(f'>>> Training finished.')
-    # torch.save(model.state_dict(), '../checkpoints/news-commentary_02032200.pth')
-    torch.save(model.state_dict(), '../checkpoints/back-translation_02032200.pth')
 
     # Test
     bleu_score = evaluate(model, test_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
@@ -226,8 +229,8 @@ if __name__ == '__main__':
     from evaluate import translate
     num_translated = 0
     results = []
-    # test_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/test.tsv')
-    test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
+    test_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/test.tsv')
+    # test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
     for src, tgt in tqdm(test_iter, total=50, desc='translating'):
         src = [src]
         tgt = [tgt]
@@ -238,7 +241,7 @@ if __name__ == '__main__':
         if num_translated == 50:
             break
 
-    # with open('../results/news-commentary_02032200.json', 'w', encoding='utf-8') as file:
-    with open('../results/back-translation_02032200.json', 'w', encoding='utf-8') as file:
+    with open('../results/news-commentary_02041310.json', 'w', encoding='utf-8') as file:
+    # with open('../results/back-translation_02032200.json', 'w', encoding='utf-8') as file:
         import json
         json.dump(results, file, ensure_ascii=False, indent=4)
