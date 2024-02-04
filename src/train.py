@@ -13,7 +13,6 @@ def train(model,
           device, 
           num_epochs, 
           scheduler=None,
-          wait=3,
           plot=True,
           figure_file='loss.png',
           model_file='model.pth'):
@@ -21,7 +20,6 @@ def train(model,
     training_losses = []
     val_losses = []
     min_val_loss = 1e4
-    cnt = 0
     for epoch in range(1, num_epochs+1):
         # Training
         progress_bar = tqdm(train_dataloader, total=len(train_dataloader), desc='training')
@@ -100,16 +98,6 @@ def train(model,
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), model_file)
-            cnt = 0
-        else:
-            cnt += 1
-            if cnt == wait:
-                print(f'Early stop at epoch {epoch}')
-                break
-
-            if val_loss - min_val_loss > 0.5:
-                print(f'Early stop at epoch {epoch}')
-                break
 
     if plot:
         import matplotlib.pyplot as plt
@@ -206,46 +194,48 @@ if __name__ == '__main__':
 
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5 * LR, steps_per_epoch=len(train_dataloader), epochs=NUM_EPOCH)
 
-    print('>>> Start training...')
-    train(
-        model=model, 
-        optimizer=optimizer, 
-        train_dataloader=train_dataloader, 
-        val_dataloader=val_dataloader,
-        loss_fn=loss_fn, 
-        device=DEVICE, 
-        num_epochs=NUM_EPOCH,
-        scheduler=scheduler,
-        wait=3,
-        plot=True,
-        figure_file='../figures/news-commentary_loss_02041310.png',
-        # figure_file='../figures/back-translation_loss_02032200.png',
-        model_file='../checkpoints/news-commentary_02041310.pth'
-        # model_file='../checkpoints/back-translation_02032200.pth',
-        )
-    print(f'>>> Training finished.')
+    # print('>>> Start training...')
+    # train(
+    #     model=model, 
+    #     optimizer=optimizer, 
+    #     train_dataloader=train_dataloader, 
+    #     val_dataloader=val_dataloader,
+    #     loss_fn=loss_fn, 
+    #     device=DEVICE, 
+    #     num_epochs=NUM_EPOCH,
+    #     scheduler=scheduler,
+    #     wait=3,
+    #     plot=True,
+    #     figure_file='../figures/news-commentary_loss_02041310.png',
+    #     # figure_file='../figures/back-translation_loss_02032200.png',
+    #     model_file='../checkpoints/news-commentary_02041310.pth'
+    #     # model_file='../checkpoints/back-translation_02032200.pth',
+    #     )
+    # print(f'>>> Training finished.')
+
+    model.load_state_dict(torch.load('../checkpoints/news-commentary_02041310.pth'))
 
     # Test
     bleu_score = evaluate(model, test_dataloader, vocab_transform[TGT_LANGUAGE], DEVICE)
     print(f'Validation BLEU score: {bleu_score:.4f}')
 
-    # Translate
-    from evaluate import translate
-    num_translated = 0
-    results = []
-    test_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/test.tsv')
-    # test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
-    for src, tgt in tqdm(test_iter, total=50, desc='translating'):
-        src = [src]
-        tgt = [tgt]
-        translated = translate(model, src, text_transform, vocab_transform[TGT_LANGUAGE], DEVICE)
-        results.append({'src': src[0], 'tgt': tgt[0], 'translated': translated[0]})
-        num_translated += 1
+    # # Translate
+    # from evaluate import translate
+    # num_translated = 0
+    # results = []
+    # test_iter = create_data_iter('/home/ljt/DL-exp5/data/news-commentary-v15/test.tsv')
+    # # test_iter = create_data_iter('/home/ljt/DL-exp5/data/back-translation/test.tsv')
+    # for src, tgt in tqdm(test_iter, total=50, desc='translating'):
+    #     src = [src]
+    #     tgt = [tgt]
+    #     translated = translate(model, src, text_transform, vocab_transform[TGT_LANGUAGE], DEVICE)
+    #     results.append({'src': src[0], 'tgt': tgt[0], 'translated': translated[0]})
+    #     num_translated += 1
 
-        if num_translated == 50:
-            break
+    #     if num_translated == 50:
+    #         break
 
-    with open('../results/news-commentary_02041310.json', 'w', encoding='utf-8') as file:
-    # with open('../results/back-translation_02032200.json', 'w', encoding='utf-8') as file:
-        import json
-        json.dump(results, file, ensure_ascii=False, indent=4)
+    # with open('../results/news-commentary_02041310.json', 'w', encoding='utf-8') as file:
+    # # with open('../results/back-translation_02032200.json', 'w', encoding='utf-8') as file:
+    #     import json
+    #     json.dump(results, file, ensure_ascii=False, indent=4)
