@@ -107,6 +107,10 @@ def train(model,
                 print(f'Early stop at epoch {epoch}')
                 break
 
+            if val_loss - min_val_loss > 0.5:
+                print(f'Early stop at epoch {epoch}')
+                break
+
     if plot:
         import matplotlib.pyplot as plt
         plt.plot(training_losses, label='Training loss')
