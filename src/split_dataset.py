@@ -26,7 +26,7 @@ def count_lines(filename):
     with open(filename, 'r') as f:
         return sum(1 for _ in f)
 
-def read_samples(en_filename, zh_filename, percentage=0.01):
+def read_samples(en_filename, zh_filename, percentage=0.005):
     num_lines = count_lines(en_filename)
     num_samples = int(num_lines * percentage)
     samples = []
