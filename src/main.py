@@ -13,7 +13,7 @@ from seq2seq_network import MyTransformer
 
 # Training hyperparameters
 NUM_EPOCH = 20
-BATCH_SIZE = 32
+BATCH_SIZE = 8
 LR = 0.0001
 
 # Model hyperparameters
@@ -30,7 +30,7 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 
 
-def news_commentary(root_dir='/home/ljt/DL-exp5'):
+def news_commentary(root_dir='/home/ljt/DL-exp5', load_model_path=None):
     # Load vocab
     vocab_save_dir = os.path.join(root_dir, 'vocab/news-commentary-v15')
     vocab_transform = {}
@@ -77,6 +77,8 @@ def news_commentary(root_dir='/home/ljt/DL-exp5'):
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5 * LR, steps_per_epoch=len(train_dataloader), epochs=NUM_EPOCH)
 
+    if load_model_path:
+        model.load_state_dict(torch.load(load_model_path))
 
     print('>>> Start training news-commentary-v15...')
     train(
@@ -89,8 +91,8 @@ def news_commentary(root_dir='/home/ljt/DL-exp5'):
         num_epochs=NUM_EPOCH,
         scheduler=scheduler,
         plot=True,
-        figure_file='../figures/news-commentary_loss_0205.png',
-        model_file='../checkpoints/news-commentary_0205.pth'
+        figure_file='../figures/news-commentary_loss.png',
+        model_file='../checkpoints/news-commentary.pth'
         )
     print(f'>>> Training finished.')
 
@@ -113,11 +115,11 @@ def news_commentary(root_dir='/home/ljt/DL-exp5'):
         if num_translated == 50:
             break
 
-    with open('../results/news-commentary_0205.json', 'w', encoding='utf-8') as file:
+    with open('../results/news-commentary.json', 'w', encoding='utf-8') as file:
         import json
         json.dump(results, file, ensure_ascii=False, indent=4)
 
-def back_translation(root_dir='/home/ljt/DL-exp5'):
+def back_translation(root_dir='/home/ljt/DL-exp5', load_model_path=None):
     # Load vocab
     vocab_save_dir = os.path.join(root_dir, 'vocab/back-translation')
     vocab_transform = {}
@@ -164,6 +166,8 @@ def back_translation(root_dir='/home/ljt/DL-exp5'):
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5 * LR, steps_per_epoch=len(train_dataloader), epochs=NUM_EPOCH)
 
+    if load_model_path:
+        model.load_state_dict(torch.load(load_model_path))
 
     print('>>> Start training back-translation...')
     train(
@@ -176,8 +180,8 @@ def back_translation(root_dir='/home/ljt/DL-exp5'):
         num_epochs=NUM_EPOCH,
         scheduler=scheduler,
         plot=True,
-        figure_file='../figures/back-translation_loss_0205.png',
-        model_file='../checkpoints/back-translation_0205.pth',
+        figure_file='../figures/back-translation_loss.png',
+        model_file='../checkpoints/back-translation.pth',
         )
     print(f'>>> Training finished.')
 
@@ -200,7 +204,7 @@ def back_translation(root_dir='/home/ljt/DL-exp5'):
         if num_translated == 50:
             break
 
-    with open('../results/back-translation_0205.json', 'w', encoding='utf-8') as file:
+    with open('../results/back-translation.json', 'w', encoding='utf-8') as file:
         import json
         json.dump(results, file, ensure_ascii=False, indent=4)
 

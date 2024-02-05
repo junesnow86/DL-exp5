@@ -1,0 +1,23 @@
+>>> Start training back-translation...
+Epoch 1/20, Train loss: 3.5982, Val loss: 4.0832
+Epoch 2/20, Train loss: 3.2389, Val loss: 4.3127
+Epoch 3/20, Train loss: 3.7518, Val loss: 4.3761
+Epoch 4/20, Train loss: 4.1976, Val loss: 4.5455
+Epoch 5/20, Train loss: 4.3624, Val loss: 4.4882
+Epoch 6/20, Train loss: 5.1200, Val loss: 6.3010
+Epoch 7/20, Train loss: 5.1288, Val loss: 6.1975
+Epoch 8/20, Train loss: 5.0030, Val loss: 6.6408
+Epoch 9/20, Train loss: 4.8852, Val loss: 6.4464
+Epoch 10/20, Train loss: 4.7679, Val loss: 6.3823
+Epoch 11/20, Train loss: 4.6524, Val loss: 6.7325
+Epoch 12/20, Train loss: 4.5249, Val loss: 6.7146
+Epoch 13/20, Train loss: 4.3892, Val loss: 6.6711
+Epoch 14/20, Train loss: 4.2505, Val loss: 6.5869
+Epoch 15/20, Train loss: 4.1115, Val loss: 6.6746
+Epoch 16/20, Train loss: 3.9805, Val loss: 6.9750
+Epoch 17/20, Train loss: 3.8615, Val loss: 7.0350
+Epoch 18/20, Train loss: 3.7603, Val loss: 7.1512
+Epoch 19/20, Train loss: 3.6874, Val loss: 7.1582
+Epoch 20/20, Train loss: 3.6454, Val loss: 7.1850
+>>> Training finished.
+Test BLEU score: 0.0004

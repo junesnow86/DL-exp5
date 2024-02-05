@@ -1,0 +1,8 @@
+>>> Start training...
+Epoch 1/20, Train loss: 4.1439, Val loss: 4.2974
+Epoch 2/20, Train loss: 3.9270, Val loss: 4.2639
+Epoch 3/20, Train loss: 3.8521, Val loss: 4.4306
+Epoch 4/20, Train loss: 4.2709, Val loss: 4.5279
+Epoch 5/20, Train loss: 4.4272, Val loss: 4.6270
+Early stop at epoch 5
+>>> Training finished.

@@ -1,0 +1,11 @@
+>>> Start training...
+>>> Start training...
+>>> Start training...
+Epoch 1/20, Train loss: 6.1121, Val loss: 5.4630
+Epoch 2/20, Train loss: 5.1463, Val loss: 4.8879
+Epoch 3/20, Train loss: 4.7103, Val loss: 4.6991
+Epoch 4/20, Train loss: 4.6470, Val loss: 4.8389
+Epoch 5/20, Train loss: 4.7070, Val loss: 5.6768
+Early stop at epoch 5
+>>> Training finished.
+Validation BLEU score: 0.0000
